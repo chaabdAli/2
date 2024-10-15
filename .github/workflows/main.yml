@@ -1,0 +1,38 @@
+name: Simple Windows RDP and LiteManager Setup
+
+on:
+  workflow_dispatch:
+
+jobs:
+  setup:
+    runs-on: windows-latest
+    timeout-minutes: 120  # Increased timeout for long-running processes
+    
+    steps:
+      # Step 1: Install Chocolatey
+      - name: Install Chocolatey
+        run: |
+          Set-ExecutionPolicy Bypass -Scope Process -Force
+          [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
+          iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
+
+      # Step 2: Install LiteManager
+      - name: Install LiteManager
+        run: |
+          Invoke-WebRequest -Uri "https://gitlab.com/chamod12/lm_win-10_github_rdp/-/raw/main/Downloads.bat" -OutFile "Downloads.bat"
+          cmd /c Downloads.bat
+
+      # Step 3: Configure Windows Firewall for RDP
+      - name: Configure Windows Firewall
+        run: |
+          netsh advfirewall firewall add rule name="Allow RDP" protocol=TCP dir=in localport=3389 action=allow
+          netsh advfirewall firewall add rule name="Allow LiteManager" protocol=TCP dir=in localport=5650 action=allow
+          netsh advfirewall firewall add rule name="Allow LiteManager Viewer" protocol=TCP dir=in localport=5651 action=allow
+          echo "Firewall configured for LiteManager and RDP"
+
+      # Step 4: Enable Remote Desktop
+      - name: Enable Remote Desktop
+        run: |
+          reg add "HKLM\SYSTEM\CurrentControlSet\Control\Terminal Server" /v fDenyTSConnections /t REG_DWORD /d 0 /f
+          netsh advfirewall firewall add rule name="RDP" dir=in action=allow protocol=TCP localport=3389
+          echo "RDP enabled and firewall configured."
